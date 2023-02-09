@@ -67,7 +67,7 @@ Private Function build_highlight_color_names()
     ReDim highlightColors(16)
     ReDim redactedCountByColor(16)
     
-    ' indexes are WdColorIndex
+    ' indexes are WdColorIndex (https://learn.microsoft.com/en-us/office/vba/api/word.wdcolorindex)
     highlightColors(1) = "black"
     highlightColors(2) = "blue"
     highlightColors(3) = "turquoise"
