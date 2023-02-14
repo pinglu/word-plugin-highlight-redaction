@@ -1,4 +1,4 @@
-# word-plugin-highlight-redaction
+# Word VBA Macro: Highlight Redaction
 ## This macro will redact highlighted text from a word document and save it to a new file.
 
 ### What does it do:
