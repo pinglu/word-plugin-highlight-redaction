@@ -55,6 +55,9 @@ Private Sub CommandButton2_Click()
                     Else
                         ' multiple highlights detected, find begining and end of correct highlight colors
                         go_through_chars_to_redact_multiple_highlights currentPosition
+                        ' or just add log and skipReplace:
+                        'multipleHighlightsText = multipleHighlightsText & "Page " & currentPosition.Information(wdActiveEndPageNumber) & ": " & Left(currentPosition.text, 100) & vbCrLf
+                        'GoTo skipReplace
                     End If
                 End If
 
@@ -66,22 +69,23 @@ skipReplace:
     If multipleHighlightsText <> "" Then
         log_text ("The following text was highlighted multiple times (a highlighted text with another highlight color inside). This was ignored / not replaced. Please take note and manually clean up. " & vbCrLf & vbCrLf & multipleHighlightsText)
     End If
-
-	' save and finish up    
-    Dim fileSuffix As String
-	fileSuffix = TB_fileSuffix.text
 	
-	' also sets the active document / formDoc to the orignal file!
+	' Save and Finish
+    Dim fileSuffix As String
+    fileSuffix = TB_fileSuffix.text
+    ' also sets the active document / formDoc to the original file!
     save_file fileSuffix
+    
     send_finish_log fileSuffix
     
 EndRedaction:
     Application.ScreenUpdating = True
     formDoc.Activate
+    Me.Show vbModeless
 End Sub
 
 Private Sub go_through_chars_to_redact_multiple_highlights(currentRange As Variant)
-    Dim replaceStartPos As Integer
+    Dim replaceStartPos As Long
     Dim prevHighlightColor As String
     Dim currentHighlightColor As String
 
@@ -90,6 +94,12 @@ Private Sub go_through_chars_to_redact_multiple_highlights(currentRange As Varia
     replaceStartPos = 0
     prevHighlightColor = ""
     Set activeStoryRange = currentRange
+    
+    If activeStoryRange.Characters.Count > 500 Then
+        log_text "Text with multiple highlights is longer than 500 chars, skipping. Review manually here: Page " & currentRange.Information(wdActiveEndPageNumber) & " / " & Left(currentRange.text, 50) & "..."
+        Exit Sub
+    End If
+    
     For Each Char In activeStoryRange.Characters
         currentHighlightColor = LTrim(Str(Char.HighlightColorIndex))
         
@@ -118,6 +128,7 @@ Private Sub go_through_chars_to_redact_multiple_highlights(currentRange As Varia
         check_and_redact_range formDoc.Range(start:=replaceStartPos, End:=currentRange.End)
         replaceStartPos = 0
     End If
+
 End Sub
 
 ' !!! RECURSIVE FUNCTION !!!
@@ -125,8 +136,12 @@ End Sub
 ' this will go check if in the current range there is a footnote or field reference.
 ' - if so, it will split the range and call itself / repeat until
 ' - if there is not footnote or field ref inside the range: call redact_text to really redact the text
-Private Function check_and_redact_range(currentRange As Range)
+Private Function check_and_redact_range(currentRange As Range, Optional depth As Integer = 1)
 
+    If depth > 2 Then
+        log_text "Depth 3 reached on " & currentRange.start & " with " & Left(currentRange.text, 50) & ", skipping. Review manually"
+        Exit Function
+    End If
     ' get the current highlight color
     ' we need this for counting
     Dim highlightColor As Integer
@@ -134,8 +149,13 @@ Private Function check_and_redact_range(currentRange As Range)
     
     ' perform check since we have the color here anyway
     If (highlightColor < 1) Or (highlightColor > 16) Then
-        log_text "Tried to redact string at " & currentRange.start & " with " & Left(currentRange.text, 10) & ", but no or individual color detected. Cannot redact it. Skipping."
+        log_text "Tried to redact string at " & currentRange.start & " with " & Left(currentRange.text, 50) & ", but no or individual color detected. Cannot redact it. Skipping."
         Exit Function
+    End If
+    
+    ' when replacing footnotes, we will avoid replacing the small number by ignoring the start of text asscii code (2 - STX)
+    If (currentRange.storyType = wdFootnotesStory) And (Asc(currentRange.Characters(1)) = 2) Then
+        currentRange.start = currentRange.start + 1
     End If
 
     ' getting redaction text
@@ -145,36 +165,62 @@ Private Function check_and_redact_range(currentRange As Range)
     Dim footnoteOrFieldFound As Boolean
     footnoteOrFieldFound = False
     
-    For Each Footnote In formDoc.Footnotes
-        
-        If (currentRange.start <= Footnote.Reference.start) And (Footnote.Reference.End <= currentRange.End) Then
-            Dim firstRange As Range
-            Dim secondRange As Range
-            
+    ' only search for footnotes outside of footnote story
+    If currentRange.storyType = wdMainTextStory Then
+        For Each Footnote In formDoc.Footnotes
+            If (currentRange.start <= Footnote.Reference.start) And (Footnote.Reference.End <= currentRange.End) Then
+                Dim firstRange As Range
+                Dim secondRange As Range
+                
+                footnoteOrFieldFound = True
+                'first range could have another field that comes later, as array is not ordered!
+                Set firstRange = formDoc.StoryRanges(currentRange.storyType)
+                firstRange.start = currentRange.start
+                firstRange.End = Footnote.Reference.start
+                
+                ' perform check since we have the color here anyway
+                highlightColor = firstRange.Characters(1).HighlightColorIndex
+                If (highlightColor < 1) Or (highlightColor > 16) Then
+                    log_text "Tried to redact string at " & currentRange.start & " with " & Left(currentRange.text, 50) & ", but no or individual color detected. Cannot redact it. Skipping."
+                    Exit Function
+                End If
+                firstRange.text = redactionText
+                formRedaction.addRedactedCountByColor LTrim(Str(highlightColor))
+                
+                ' second Range: define and run check again
+                Set secondRange = formDoc.StoryRanges(currentRange.storyType)
+                secondRange.start = Footnote.Reference.End
+                secondRange.End = currentRange.End
+                check_and_redact_range secondRange, depth + 1
+            End If
+        Next
+    End If
+    
+    For Each field In currentRange.fields
+        ' IMPORTANT: fields start at field.Code.start and end at field.Result.End
+        If (currentRange.storyType = field.Result.storyType) And (currentRange.start <= field.Code.start) And (field.Result.End <= currentRange.End) Then
             footnoteOrFieldFound = True
-            'first range could have another field that comes later, as array is not ordered!
-            Set firstRange = formDoc.Range(start:=currentRange.start, End:=Footnote.Reference.start)
+            ' there are fields in this range:
+            Set firstRange = formDoc.StoryRanges(currentRange.storyType)
+            firstRange.start = currentRange.start
+            ' !!! this leaves the start code!
+            firstRange.End = field.Code.start - 1
+
             ' perform check since we have the color here anyway
             highlightColor = firstRange.Characters(1).HighlightColorIndex
             If (highlightColor < 1) Or (highlightColor > 16) Then
-                log_text "Tried to redact string at " & currentRange.start & " with " & Left(currentRange.text, 10) & ", but no or individual color detected. Cannot redact it. Skipping."
+                log_text "Tried to redact string at " & currentRange.start & " with " & Left(currentRange.text, 50) & ", but no or individual color detected. Cannot redact it. Skipping."
                 Exit Function
             End If
             firstRange.text = redactionText
             formRedaction.addRedactedCountByColor LTrim(Str(highlightColor))
             
-            ' second Range: define and run check again
-            Set secondRange = formDoc.Range(start:=Footnote.Reference.End, End:=currentRange.End)
-            check_and_redact_range secondRange
+            Set secondRange = formDoc.StoryRanges(currentRange.storyType)
+            secondRange.start = field.Result.End + 1
+            secondRange.End = currentRange.End
+
+            check_and_redact_range secondRange, depth + 1
         End If
-    Next
-    
-    For Each field In currentRange.fields
-        ' there are fields in this range:
-        Set firstRange = formDoc.Range(start:=currentRange.start, End:=field.Range.start)
-            check_and_redact_range firstRange
-        Set secondRange = formDoc.Range(start:=field.Range.End, End:=currentRange.End)
-            check_and_redact_range firstRange
     Next
 
     If footnoteOrFieldFound = False Then
@@ -191,7 +237,7 @@ Private Function redact_text(currentRange As Range)
     
     ' perform check since we have the color here anyway
     If (highlightColor < 1) Or (highlightColor > 16) Then
-        log_text "Tried to redact string at " & currentRange.start & " with " & Left(currentRange.text, 10) & ", but no or individual color detected. Cannot redact it. Skipping."
+        log_text "Tried to redact string at " & currentRange.start & " with " & Left(currentRange.text, 50) & ", but no or individual color detected. Cannot redact it. Skipping."
         Exit Function
     End If
 
@@ -256,7 +302,7 @@ Private Sub send_finish_log(fileSuffix As String)
 End Sub
 
 Private Sub UserForm_Initialize()
-    log_text "Ready to go."
+    log_text "Starting..."
 End Sub
 
 Property Set setformRedaction(ByRef redaction As clsRedaction)

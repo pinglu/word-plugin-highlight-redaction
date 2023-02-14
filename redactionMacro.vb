@@ -2,7 +2,7 @@ Sub RedactionTool()
     '
     ' RedactionTool Makro
     '
-    ' @author: Ping Lu <mail@ping.lu>
+    ' @author: Ping Lu <github at ping dot lu>
     ' @since: 31.01.2023
     ' @version: 1.0
     
