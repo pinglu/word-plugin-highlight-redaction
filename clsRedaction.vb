@@ -269,7 +269,7 @@ Public Property Get getToRedactColorsAsName() As String()
 End Property
 
 ' build array of colors that the user wants to redact
-Public Sub setRedactColors(redactColorsIndex() As String, redactColorsName() As String, counter As Integer)    
+Public Sub setRedactColors(redactColorsIndex() As String, redactColorsName() As String, counter As Integer)
     ReDim toRedactColorsAsIndex(counter)
     ReDim toRedactColorsAsName(counter)
     
@@ -296,7 +296,7 @@ End Sub
 ' ##################################################################################
 
 Public Property Get getRedactedColorsWithCount() As String
-	'first build the array
+    'first build the array
     build_redacted_colors_with_count_string
     
     getRedactedColorsWithCount = redactedColorsWithCount
@@ -332,3 +332,4 @@ End Property
 Private Function log_text(text As String)
     clsForm.logBox.text = logBox.text & text & vbCrLf
 End Function
+

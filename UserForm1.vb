@@ -430,3 +430,4 @@ End Sub
 Private Function log_text(text As String)
     logBox.text = logBox.text & text & vbCrLf & vbCrLf
 End Function
+
