@@ -2,7 +2,7 @@ Sub RedactionTool()
     '
     ' RedactionTool Makro
     '
-    ' @author: Ping Lu <github at ping dot lu>
+    ' @author: Ping Lu <mail@ping.lu>
     ' @since: 31.01.2023
     ' @version: 1.0
     
@@ -36,7 +36,7 @@ Sub addColorsToUserForm(myForm As userForm1, redaction As clsRedaction)
     Dim selectedColor As Integer
     
     ' Adding used highlight colors to form
-    For color = 0 To UBound(redaction.getUsedHighlightColorsAsName) - 1
+    For color = 0 To UBound(redaction.getUsedHighlightColorsAsName)
         If redaction.getUsedHighlightColorNameByIndex(color) <> "" Then
             myForm.LB_colorsToRedact.AddItem (redaction.getUsedHighlightColorNameByIndex(color))
         End If
@@ -53,10 +53,11 @@ Sub addInfoTextToUserForm(myForm As userForm1)
     "It will check if the highlighted color is one of the colors the user has selected, if so, it will check if there are references (footnotes, fields) in the block, if found, it will seperate the range into multiple and replace all highlighted text with the redacted text. It will first go through the main text, then through footnotes and textboxes." & vbCrLf & vbCrLf & _
     "This macro will " & vbCrLf & _
     "- redact text in the main body, tables, footnotes and textfields" & vbCrLf & _
-    "- redact text in the main body that have highlights within highligts" & vbCrLf & _
+    "- redact text in the main body that have highlights within highlights" & vbCrLf & _
     "- will leave footnotes and cross references (fields) within a highlight (will redact in front of and behind the reference) in the main text" & vbCrLf & vbCrLf & _
     "This macro will NOT: " & vbCrLf & _
-    "- redact text in multiple highlights in textfields or footnotes as vba does not seem to be able to use range within those storyTypes" & vbCrLf & _
+    "- redact text in multiple highlights in text fields as vba does not seem to be able to use range within those storyTypes. Will notify user." & vbCrLf & _
+	"- will not redact the target of cross references, if those are highlighted. Will notify user." & vbCrLf & _
     "- cannot redact text with custom colors (outside of WdColorIndex)" & vbCrLf & _
     "- it also sometimes redacts one highlight as two consecutive highlights (putting in [redacted][redacted] instead of once [redacted])" & vbCrLf & _
     "- it will not redact text in header of footer (but will search for colors in there). This can be changed in code (see clsRedaction.build_story_ranges)" & vbCrLf & vbCrLf & _
@@ -64,10 +65,11 @@ Sub addInfoTextToUserForm(myForm As userForm1)
     
     myForm.TB_Info.text = text
     
-    license = "Copyright (C) 2023 Ping Lu" & vbCrLf & vbCrLf & _
-	"This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version."& vbCrLf & vbCrLf & _
-	"This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details."& vbCrLf & vbCrLf & _
-	"You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>."
+    license = "MIT License" & vbCrLf & vbCrLf & _
+    "Copyright (c) 2023 Ping Lu" & vbCrLf & vbCrLf & _
+    "Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the 'Software'), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:" & vbCrLf & vbCrLf & _
+    "The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software." & vbCrLf & _
+    "THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
 
     myForm.TB_license.text = license
 End Sub

@@ -22,7 +22,7 @@ Private Sub CommandButton2_Click()
     redactStoryRangeArray = formRedaction.getRedactStoryRangeAsIntArray
     
     If UBound(userColorSelectionArray) = 0 And userColorSelectionArray(0) = "" Then
-        log_text "***** FATAL *****" & vbCrLf &  "No colors selected. Use CTRL and left mouse to select multiple. Exiting..."
+        log_text "***** FATAL *****" & vbCrLf & "No colors selected. Use CTRL and left mouse to select multiple. Exiting..."
         GoTo EndRedaction
     End If
     
@@ -97,7 +97,7 @@ Private Sub go_through_chars_to_redact_multiple_highlights(currentRange As Varia
     Set activeStoryRange = currentRange
     
     If activeStoryRange.Characters.Count > 500 Then
-        log_text "***** Warning *****" & vbCrLf &  "Text with multiple highlights is longer than 500 chars. Skip, review manually" & vbCrLf & "> Page " & activeStoryRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(activeStoryRange.text, 50) & "..."
+        log_text "***** Warning *****" & vbCrLf & "Text with multiple highlights is longer than 500 chars. Skip, review manually" & vbCrLf & "> Page " & activeStoryRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(activeStoryRange.text, 50) & "..."
         Exit Sub
     End If
     
@@ -167,7 +167,7 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
     
     ' perform check since we have the color here anyway
     If (highlightColor < 1) Or (highlightColor > 16) Then
-		log_text "***** Warning *****" & vbCrLf & "Highlight color unclear. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
+        log_text "***** Warning *****" & vbCrLf & "Highlight color unclear. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
         Exit Function
     End If
 
@@ -187,7 +187,7 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
             vSt1 = Split(vSt1, " ")(2)
             Set bookmarkRange = formDoc.Bookmarks(vSt1).Range
             If (currentRange.storyType = bookmarkRange.storyType) And (currentRange.start <= bookmarkRange.start) And (bookmarkRange.End <= currentRange.End) Then
-				log_text "***** Warning *****" & vbCrLf & "Trying to redact target of a cross refernce. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
+                log_text "***** Warning *****" & vbCrLf & "Trying to redact target of a cross refernce. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
                 Exit Function
             End If
         Next field
@@ -212,7 +212,7 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
                 ' perform check since we have the color here anyway
                 highlightColor = firstRange.Characters(1).HighlightColorIndex
                 If (highlightColor < 1) Or (highlightColor > 16) Then
-					log_text "***** Warning *****" & vbCrLf & "Highlight color unclear. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
+                    log_text "***** Warning *****" & vbCrLf & "Highlight color unclear. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
                     Exit Function
                 End If
                 firstRange.text = redactionText
@@ -430,4 +430,3 @@ End Sub
 Private Function log_text(text As String)
     logBox.text = logBox.text & text & vbCrLf & vbCrLf
 End Function
-
