@@ -42,23 +42,31 @@ Private Sub CommandButton2_Click()
                     GoTo skipReplace
                 End If
                 
+                Dim myRange As Range
+                
+                ' check for starter and ending empty spaces:
+                If (currentPosition.Characters.First.text = " ") Then
+                    currentPosition.Start = currentPosition.Start + 1
+                End If
+                
+                If (currentPosition.Characters.Last.text = " ") Then
+                    currentPosition.End = currentPosition.End - 1
+                End If
+                
                 currentHighlightColor = LTrim(Str(currentPosition.HighlightColorIndex))
                 If is_in_array(currentHighlightColor, userColorSelectionArray) = True Then
                     ' replace!
-                    Dim myRange As Range
                     Set myRange = currentPosition
                     check_and_redact_range myRange
-                    currentPosition.Collapse wdCollapseEnd
+
                 ElseIf currentHighlightColor = "9999999" Then
                     If currentPosition.storyType <> wdMainTextStory Then
                         ' save location of multiple highlights
                         multipleHighlightsText = multipleHighlightsText & "> Page " & currentPosition.Information(wdActiveEndPageNumber) & ": " & Left(currentPosition.text, 50) & vbCrLf
-                        currentPosition.Collapse wdCollapseEnd
                         GoTo skipReplace
                     Else
                         ' multiple highlights detected, find begining and end of correct highlight colors
                         go_through_chars_to_redact_multiple_highlights currentPosition
-                        currentPosition.Collapse wdCollapseEnd
                         ' or just add log and skipReplace:
                         'multipleHighlightsText = multipleHighlightsText & "Page " & currentPosition.Information(wdActiveEndPageNumber) & ": " & Left(currentPosition.text, 50) & vbCrLf
                         'GoTo skipReplace
@@ -66,6 +74,7 @@ Private Sub CommandButton2_Click()
                 End If
 
 skipReplace:
+            currentPosition.Collapse wdCollapseEnd
             Loop
         End With
     Next
@@ -81,6 +90,7 @@ skipReplace:
     save_file fileSuffix
     
     send_finish_log fileSuffix
+    log_text "Finished at " & Time
     
 EndRedaction:
     Application.ScreenUpdating = True
@@ -112,12 +122,12 @@ Private Sub go_through_chars_to_redact_multiple_highlights(currentRange As Varia
         If is_in_array(currentHighlightColor, userColorSelectionArray) = True Then
             ' no replace start pos, this is the first char of the highlighted text
             If replaceStartPos = 0 Then
-                replaceStartPos = Char.start
+                replaceStartPos = Char.Start
             ElseIf currentHighlightColor <> prevHighlightColor Then
             ' not the first character, but colors changed to another to be replaced Character
                 Set myRange = formDoc.StoryRanges(activeStoryRange.storyType)
-                myRange.start = replaceStartPos
-                myRange.End = Char.start
+                myRange.Start = replaceStartPos
+                myRange.End = Char.Start
                 check_and_redact_range myRange
                 ' this is set to zero, because we're skipping all the characters from the replaced string, and will pass by the replaceStartPos = 0 if clause
                 replaceStartPos = Char.End - 1
@@ -127,8 +137,8 @@ Private Sub go_through_chars_to_redact_multiple_highlights(currentRange As Varia
             ' if Char is not highligted AND (but the prev chars where highlighted / there was a replaceStartPos), then replace the string
             If (replaceStartPos <> 0) Then
                 Set myRange = formDoc.StoryRanges(activeStoryRange.storyType)
-                myRange.start = replaceStartPos
-                myRange.End = Char.start
+                myRange.Start = replaceStartPos
+                myRange.End = Char.Start
                 check_and_redact_range myRange
                 replaceStartPos = 0
             End If
@@ -137,7 +147,7 @@ Private Sub go_through_chars_to_redact_multiple_highlights(currentRange As Varia
     
     If (replaceStartPos <> 0) Then
         Set myRange = formDoc.StoryRanges(activeStoryRange.storyType)
-        myRange.start = replaceStartPos
+        myRange.Start = replaceStartPos
         myRange.End = currentRange.End
         check_and_redact_range myRange
         replaceStartPos = 0
@@ -162,9 +172,9 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
         
     ' when replacing footnotes, we will avoid replacing the small number by ignoring the start of text asscii code (2 - STX)
     If (currentRange.storyType = wdFootnotesStory) And (Asc(currentRange.Characters(1)) = 2) Then
-        currentRange.start = currentRange.start + 1
+        currentRange.Start = currentRange.Start + 1
     End If
-    
+
     ' get the current highlight color
     ' we need this for counting
     Dim highlightColor As Long
@@ -175,28 +185,36 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
         log_text "***** Warning *****" & vbCrLf & "Highlight color unclear. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
         Exit Function
     End If
+    
+
 
     ' getting redaction text
     Dim redactionText As String
     redactionText = TB_redactionText.text
 
-    ' check if range is target of a field
-    redactStoryRangeArray = formRedaction.getRedactStoryRangeAsIntArray
-    Dim newStoryRange As Range
-    Dim bookmarkRange As Range
-    Dim vSt1 As String
-    For i = 0 To UBound(redactStoryRangeArray)
-        Set newStoryRange = formDoc.StoryRanges(redactStoryRangeArray(i))
-        For Each field In newStoryRange.fields
-            vSt1 = field.Code
-            vSt1 = Split(vSt1, " ")(2)
-            Set bookmarkRange = formDoc.Bookmarks(vSt1).Range
-            If (currentRange.storyType = bookmarkRange.storyType) And (currentRange.start <= bookmarkRange.start) And (bookmarkRange.End <= currentRange.End) Then
-                log_text "***** Warning *****" & vbCrLf & "Trying to redact target of a cross refernce. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
-                Exit Function
-            End If
-        Next field
-    Next i
+    If (depth = 1) Then
+        ' check if range is target of a field
+        redactStoryRangeArray = formRedaction.getRedactStoryRangeAsIntArray
+        Dim newStoryRange As Range
+        Dim bookmarkRange As Range
+        Dim vSt1 As String
+        For i = 0 To UBound(redactStoryRangeArray)
+            Set newStoryRange = formDoc.StoryRanges(redactStoryRangeArray(i))
+            For Each field In newStoryRange.Fields
+                vSt1 = field.Code
+                If Split(vSt1, " ")(1) = "REF" Then
+                    vSt1 = Split(vSt1, " ")(2)
+                    If formDoc.Bookmarks.Exists(vSt1) Then
+                        Set bookmarkRange = formDoc.Bookmarks(vSt1).Range
+                        If (currentRange.storyType = bookmarkRange.storyType) And (currentRange.Start <= bookmarkRange.Start) And (bookmarkRange.End <= currentRange.End) Then
+                            log_text "***** Warning *****" & vbCrLf & "Trying to redact target of a cross refernce. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
+                            Exit Function
+                        End If
+                    End If
+                End If
+            Next field
+        Next i
+    End If
 
     Dim footnoteOrFieldFound As Boolean
     footnoteOrFieldFound = False
@@ -207,15 +225,15 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
     ' ********************************************************
     If currentRange.storyType = wdMainTextStory Then
         For Each Footnote In formDoc.Footnotes
-            If (currentRange.start <= Footnote.Reference.start) And (Footnote.Reference.End <= currentRange.End) Then
+            If (currentRange.Start <= Footnote.Reference.Start) And (Footnote.Reference.End <= currentRange.End) Then
                 Dim firstRange As Range
                 Dim secondRange As Range
                 
                 footnoteOrFieldFound = True
                 'first range could have another field that comes later, as array is not ordered!
                 Set firstRange = formDoc.StoryRanges(currentRange.storyType)
-                firstRange.start = currentRange.start
-                firstRange.End = Footnote.Reference.start
+                firstRange.Start = currentRange.Start
+                firstRange.End = Footnote.Reference.Start
                 
                 ' perform check since we have the color here anyway
                 highlightColor = firstRange.Characters(1).HighlightColorIndex
@@ -228,7 +246,7 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
                 
                 ' second Range: define and run check again
                 Set secondRange = formDoc.StoryRanges(currentRange.storyType)
-                secondRange.start = Footnote.Reference.End
+                secondRange.Start = Footnote.Reference.End
                 secondRange.End = currentRange.End
                 check_and_redact_range secondRange, depth + 1
             End If
@@ -241,13 +259,13 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
     ' ********************************************************
     For Each field In currentRange.Fields
         ' IMPORTANT: fields start at field.Code.start and end at field.Result.End
-        If (currentRange.storyType = field.Result.storyType) And (currentRange.start <= field.Code.start) And (field.Result.End <= currentRange.End) Then
+        If (currentRange.storyType = field.Result.storyType) And (currentRange.Start <= field.Code.Start) And (field.Result.End <= currentRange.End) Then
             footnoteOrFieldFound = True
             ' there are fields in this range:
             Set firstRange = formDoc.StoryRanges(currentRange.storyType)
-            firstRange.start = currentRange.start
+            firstRange.Start = currentRange.Start
             ' !!! this leaves the start code!
-            firstRange.End = field.Code.start - 1
+            firstRange.End = field.Code.Start - 1
 
             ' perform check since we have the color here anyway
             highlightColor = firstRange.Characters(1).HighlightColorIndex
@@ -259,7 +277,7 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
             formRedaction.addRedactedCountByColor LTrim(Str(highlightColor))
             
             Set secondRange = formDoc.StoryRanges(currentRange.storyType)
-            secondRange.start = field.Result.End + 1
+            secondRange.Start = field.Result.End + 1
             secondRange.End = currentRange.End
 
             check_and_redact_range secondRange, depth + 1
@@ -446,4 +464,5 @@ End Sub
 Private Function log_text(text As String)
     logBox.text = logBox.text & text & vbCrLf & vbCrLf
 End Function
+
 
