@@ -4,7 +4,7 @@ Sub RedactionTool()
     '
     ' @author: Ping Lu <mail@ping.lu>
     ' @since: 31.01.2023
-    ' @version: 1.0
+    ' @version: 1.1
     
     Dim thisDoc As Document
     Set thisDoc = ActiveDocument
@@ -57,7 +57,7 @@ Sub addInfoTextToUserForm(myForm As userForm1)
     "- will leave footnotes and cross references (fields) within a highlight (will redact in front of and behind the reference) in the main text" & vbCrLf & vbCrLf & _
     "This macro will NOT: " & vbCrLf & _
     "- redact text in multiple highlights in text fields as vba does not seem to be able to use range within those storyTypes. Will notify user." & vbCrLf & _
-	"- will not redact the target of cross references, if those are highlighted. Will notify user." & vbCrLf & _
+    "- will not redact the target of cross references, if those are highlighted. Will notify user." & vbCrLf & _
     "- cannot redact text with custom colors (outside of WdColorIndex)" & vbCrLf & _
     "- it also sometimes redacts one highlight as two consecutive highlights (putting in [redacted][redacted] instead of once [redacted])" & vbCrLf & _
     "- it will not redact text in header of footer (but will search for colors in there). This can be changed in code (see clsRedaction.build_story_ranges)" & vbCrLf & vbCrLf & _
