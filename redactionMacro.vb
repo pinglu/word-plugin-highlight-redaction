@@ -2,7 +2,7 @@ Sub RedactionTool()
     '
     ' RedactionTool Makro
     '
-    ' @author: Ping Lu <mail@ping.lu>
+    ' @author: Ping Lu <mail at ping dot lu>
     ' @since: 31.01.2023
     ' @version: 1.1
     
@@ -73,4 +73,3 @@ Sub addInfoTextToUserForm(myForm As userForm1)
 
     myForm.TB_license.text = license
 End Sub
-

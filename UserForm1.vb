@@ -1,9 +1,11 @@
+
 Private formRedaction As clsRedaction
 Private formDoc As Document
 
 Private Sub CommandButton2_Click()
     ' Starting
     formRedaction.resetRedactedColorCounts
+    log_text "Starting Redaction at " & Time
     Application.ScreenUpdating = False
     
     Dim startRedactionPage As Integer
@@ -51,10 +53,12 @@ Private Sub CommandButton2_Click()
                     If currentPosition.storyType <> wdMainTextStory Then
                         ' save location of multiple highlights
                         multipleHighlightsText = multipleHighlightsText & "> Page " & currentPosition.Information(wdActiveEndPageNumber) & ": " & Left(currentPosition.text, 50) & vbCrLf
+                        currentPosition.Collapse wdCollapseEnd
                         GoTo skipReplace
                     Else
                         ' multiple highlights detected, find begining and end of correct highlight colors
                         go_through_chars_to_redact_multiple_highlights currentPosition
+                        currentPosition.Collapse wdCollapseEnd
                         ' or just add log and skipReplace:
                         'multipleHighlightsText = multipleHighlightsText & "Page " & currentPosition.Information(wdActiveEndPageNumber) & ": " & Left(currentPosition.text, 50) & vbCrLf
                         'GoTo skipReplace
@@ -150,6 +154,7 @@ End Sub
 ' - if all is well finally redact!
 Private Function check_and_redact_range(currentRange As Range, Optional depth As Integer = 1)
 
+    Debug.Print currentRange.text
     If depth > 2 Then
         log_text "***** Warning *****" & vbCrLf & "Recursive Function reached depth 3. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
         Exit Function
@@ -162,7 +167,7 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
     
     ' get the current highlight color
     ' we need this for counting
-    Dim highlightColor As Integer
+    Dim highlightColor As Long
     highlightColor = currentRange.Characters(1).HighlightColorIndex
     
     ' perform check since we have the color here anyway
@@ -196,7 +201,10 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
     Dim footnoteOrFieldFound As Boolean
     footnoteOrFieldFound = False
     
-    ' only search for footnotes outside of footnote story
+    ' ********************************************************
+    '  Do we have a footnote marker in this range, and are we in the main text story?
+    '    if so, replace around it.
+    ' ********************************************************
     If currentRange.storyType = wdMainTextStory Then
         For Each Footnote In formDoc.Footnotes
             If (currentRange.start <= Footnote.Reference.start) And (Footnote.Reference.End <= currentRange.End) Then
@@ -227,7 +235,11 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
         Next
     End If
     
-    For Each field In currentRange.fields
+    ' ********************************************************
+    '  Go through cross references and see if we're in one
+    '    if so, replace around it
+    ' ********************************************************
+    For Each field In currentRange.Fields
         ' IMPORTANT: fields start at field.Code.start and end at field.Result.End
         If (currentRange.storyType = field.Result.storyType) And (currentRange.start <= field.Code.start) And (field.Result.End <= currentRange.End) Then
             footnoteOrFieldFound = True
@@ -254,6 +266,10 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
         End If
     Next
 
+    ' ********************************************************
+    '  Not a cross reference target, not a footnote marker, not a reference field
+    '    so we can redact it
+    ' ********************************************************
     If footnoteOrFieldFound = False Then
         currentRange.text = redactionText
         formRedaction.addRedactedCountByColor LTrim(Str(highlightColor))
@@ -313,7 +329,7 @@ Private Sub send_finish_log(fileSuffix As String)
 End Sub
 
 Private Sub UserForm_Initialize()
-    log_text "Starting..."
+    log_text "Initializing Form..."
 End Sub
 
 Property Set setformRedaction(ByRef redaction As clsRedaction)
