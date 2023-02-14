@@ -45,28 +45,28 @@ Private Sub CommandButton2_Click()
                 Dim myRange As Range
                 
                 ' check for starter and ending empty spaces:
-                If (currentPosition.Characters.First.text = " ") Then
-                    currentPosition.Start = currentPosition.Start + 1
+                If (Asci(currentPosition.Characters.First.text) < 32) Then
+                    myRange.Start = currentPosition.Start + 1
                 End If
                 
-                If (currentPosition.Characters.Last.text = " ") Then
-                    currentPosition.End = currentPosition.End - 1
+                If (Asci(currentPosition.Characters.Last.text) < 32) Then
+                    myRange.End = currentPosition.End - 1
                 End If
                 
                 currentHighlightColor = LTrim(Str(currentPosition.HighlightColorIndex))
                 If is_in_array(currentHighlightColor, userColorSelectionArray) = True Then
                     ' replace!
-                    Set myRange = currentPosition
+                    ' Set myRange = currentPosition
                     check_and_redact_range myRange
 
                 ElseIf currentHighlightColor = "9999999" Then
                     If currentPosition.storyType <> wdMainTextStory Then
                         ' save location of multiple highlights
-                        multipleHighlightsText = multipleHighlightsText & "> Page " & currentPosition.Information(wdActiveEndPageNumber) & ": " & Left(currentPosition.text, 50) & vbCrLf
+                        multipleHighlightsText = multipleHighlightsText & "> Page " & myRange.Information(wdActiveEndPageNumber) & ": " & Left(myRange.text, 50) & vbCrLf
                         GoTo skipReplace
                     Else
                         ' multiple highlights detected, find begining and end of correct highlight colors
-                        go_through_chars_to_redact_multiple_highlights currentPosition
+                        go_through_chars_to_redact_multiple_highlights myRange
                         ' or just add log and skipReplace:
                         'multipleHighlightsText = multipleHighlightsText & "Page " & currentPosition.Information(wdActiveEndPageNumber) & ": " & Left(currentPosition.text, 50) & vbCrLf
                         'GoTo skipReplace
