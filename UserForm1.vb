@@ -110,7 +110,10 @@ Private Sub go_through_chars_to_redact_multiple_highlights(currentRange As Varia
                 replaceStartPos = Char.start
             ElseIf currentHighlightColor <> prevHighlightColor Then
             ' not the first character, but colors changed to another to be replaced Character
-                check_and_redact_range formDoc.Range(start:=replaceStartPos, End:=Char.start)
+                Set myRange = formDoc.StoryRanges(activeStoryRange.storyType)
+                myRange.start = replaceStartPos
+                myRange.End = Char.start
+                check_and_redact_range myRange
                 ' this is set to zero, because we're skipping all the characters from the replaced string, and will pass by the replaceStartPos = 0 if clause
                 replaceStartPos = Char.End - 1
             End If
@@ -118,14 +121,20 @@ Private Sub go_through_chars_to_redact_multiple_highlights(currentRange As Varia
         Else
             ' if Char is not highligted AND (but the prev chars where highlighted / there was a replaceStartPos), then replace the string
             If (replaceStartPos <> 0) Then
-                check_and_redact_range formDoc.Range(start:=replaceStartPos, End:=Char.start)
+                Set myRange = formDoc.StoryRanges(activeStoryRange.storyType)
+                myRange.start = replaceStartPos
+                myRange.End = Char.start
+                check_and_redact_range myRange
                 replaceStartPos = 0
             End If
         End If
     Next Char
     
     If (replaceStartPos <> 0) Then
-        check_and_redact_range formDoc.Range(start:=replaceStartPos, End:=currentRange.End)
+        Set myRange = formDoc.StoryRanges(activeStoryRange.storyType)
+        myRange.start = replaceStartPos
+        myRange.End = currentRange.End
+        check_and_redact_range myRange
         replaceStartPos = 0
     End If
 
@@ -142,6 +151,12 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
         log_text "Depth 3 reached on " & currentRange.start & " with " & Left(currentRange.text, 50) & ", skipping. Review manually"
         Exit Function
     End If
+        
+    ' when replacing footnotes, we will avoid replacing the small number by ignoring the start of text asscii code (2 - STX)
+    If (currentRange.storyType = wdFootnotesStory) And (Asc(currentRange.Characters(1)) = 2) Then
+        currentRange.start = currentRange.start + 1
+    End If
+    
     ' get the current highlight color
     ' we need this for counting
     Dim highlightColor As Integer
@@ -151,11 +166,6 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
     If (highlightColor < 1) Or (highlightColor > 16) Then
         log_text "Tried to redact string at " & currentRange.start & " with " & Left(currentRange.text, 50) & ", but no or individual color detected. Cannot redact it. Skipping."
         Exit Function
-    End If
-    
-    ' when replacing footnotes, we will avoid replacing the small number by ignoring the start of text asscii code (2 - STX)
-    If (currentRange.storyType = wdFootnotesStory) And (Asc(currentRange.Characters(1)) = 2) Then
-        currentRange.start = currentRange.start + 1
     End If
 
     ' getting redaction text
