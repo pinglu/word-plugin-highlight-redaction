@@ -22,7 +22,7 @@ Private Sub CommandButton2_Click()
     redactStoryRangeArray = formRedaction.getRedactStoryRangeAsIntArray
     
     If UBound(userColorSelectionArray) = 0 And userColorSelectionArray(0) = "" Then
-        log_text ("No colors selected. Use CTRL and left mouse to select multiple. Exiting...")
+        log_text "***** FATAL *****" & vbCrLf &  "No colors selected. Use CTRL and left mouse to select multiple. Exiting..."
         GoTo EndRedaction
     End If
     
@@ -50,13 +50,13 @@ Private Sub CommandButton2_Click()
                 ElseIf currentHighlightColor = "9999999" Then
                     If currentPosition.storyType <> wdMainTextStory Then
                         ' save location of multiple highlights
-                        multipleHighlightsText = multipleHighlightsText & "Page " & currentPosition.Information(wdActiveEndPageNumber) & ": " & Left(currentPosition.text, 100) & vbCrLf
+                        multipleHighlightsText = multipleHighlightsText & "> Page " & currentPosition.Information(wdActiveEndPageNumber) & ": " & Left(currentPosition.text, 50) & vbCrLf
                         GoTo skipReplace
                     Else
                         ' multiple highlights detected, find begining and end of correct highlight colors
                         go_through_chars_to_redact_multiple_highlights currentPosition
                         ' or just add log and skipReplace:
-                        'multipleHighlightsText = multipleHighlightsText & "Page " & currentPosition.Information(wdActiveEndPageNumber) & ": " & Left(currentPosition.text, 100) & vbCrLf
+                        'multipleHighlightsText = multipleHighlightsText & "Page " & currentPosition.Information(wdActiveEndPageNumber) & ": " & Left(currentPosition.text, 50) & vbCrLf
                         'GoTo skipReplace
                     End If
                 End If
@@ -67,10 +67,10 @@ skipReplace:
     Next
     
     If multipleHighlightsText <> "" Then
-        log_text ("The following text was highlighted multiple times (a highlighted text with another highlight color inside). This was ignored / not replaced. Please take note and manually clean up. " & vbCrLf & vbCrLf & multipleHighlightsText)
+        log_text ("***** Warning *****" & vbCrLf & "Manually review multiple highligted text in text boxes:" & vbCrLf & vbCrLf & multipleHighlightsText)
     End If
-	
-	' Save and Finish
+    
+    ' Save and Finish
     Dim fileSuffix As String
     fileSuffix = TB_fileSuffix.text
     ' also sets the active document / formDoc to the original file!
@@ -88,6 +88,7 @@ Private Sub go_through_chars_to_redact_multiple_highlights(currentRange As Varia
     Dim replaceStartPos As Long
     Dim prevHighlightColor As String
     Dim currentHighlightColor As String
+    Dim myRange As Range
 
     userColorSelectionArray = formRedaction.getToRedactColorsAsIndex
 
@@ -96,7 +97,7 @@ Private Sub go_through_chars_to_redact_multiple_highlights(currentRange As Varia
     Set activeStoryRange = currentRange
     
     If activeStoryRange.Characters.Count > 500 Then
-        log_text "Text with multiple highlights is longer than 500 chars, skipping. Review manually here: Page " & currentRange.Information(wdActiveEndPageNumber) & " / " & Left(currentRange.text, 50) & "..."
+        log_text "***** Warning *****" & vbCrLf &  "Text with multiple highlights is longer than 500 chars. Skip, review manually" & vbCrLf & "> Page " & activeStoryRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(activeStoryRange.text, 50) & "..."
         Exit Sub
     End If
     
@@ -144,11 +145,13 @@ End Sub
 '
 ' this will go check if in the current range there is a footnote or field reference.
 ' - if so, it will split the range and call itself / repeat until
-' - if there is not footnote or field ref inside the range: call redact_text to really redact the text
+' - if there is not footnote or field ref inside the range
+' - check if this range contains a target of a field ref -> if so alert user and do not redact
+' - if all is well finally redact!
 Private Function check_and_redact_range(currentRange As Range, Optional depth As Integer = 1)
 
     If depth > 2 Then
-        log_text "Depth 3 reached on " & currentRange.start & " with " & Left(currentRange.text, 50) & ", skipping. Review manually"
+        log_text "***** Warning *****" & vbCrLf & "Recursive Function reached depth 3. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
         Exit Function
     End If
         
@@ -164,13 +167,31 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
     
     ' perform check since we have the color here anyway
     If (highlightColor < 1) Or (highlightColor > 16) Then
-        log_text "Tried to redact string at " & currentRange.start & " with " & Left(currentRange.text, 50) & ", but no or individual color detected. Cannot redact it. Skipping."
+		log_text "***** Warning *****" & vbCrLf & "Highlight color unclear. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
         Exit Function
     End If
 
     ' getting redaction text
     Dim redactionText As String
     redactionText = TB_redactionText.text
+
+    ' check if range is target of a field
+    redactStoryRangeArray = formRedaction.getRedactStoryRangeAsIntArray
+    Dim newStoryRange As Range
+    Dim bookmarkRange As Range
+    Dim vSt1 As String
+    For i = 0 To UBound(redactStoryRangeArray)
+        Set newStoryRange = formDoc.StoryRanges(redactStoryRangeArray(i))
+        For Each field In newStoryRange.fields
+            vSt1 = field.Code
+            vSt1 = Split(vSt1, " ")(2)
+            Set bookmarkRange = formDoc.Bookmarks(vSt1).Range
+            If (currentRange.storyType = bookmarkRange.storyType) And (currentRange.start <= bookmarkRange.start) And (bookmarkRange.End <= currentRange.End) Then
+				log_text "***** Warning *****" & vbCrLf & "Trying to redact target of a cross refernce. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
+                Exit Function
+            End If
+        Next field
+    Next i
 
     Dim footnoteOrFieldFound As Boolean
     footnoteOrFieldFound = False
@@ -191,7 +212,7 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
                 ' perform check since we have the color here anyway
                 highlightColor = firstRange.Characters(1).HighlightColorIndex
                 If (highlightColor < 1) Or (highlightColor > 16) Then
-                    log_text "Tried to redact string at " & currentRange.start & " with " & Left(currentRange.text, 50) & ", but no or individual color detected. Cannot redact it. Skipping."
+					log_text "***** Warning *****" & vbCrLf & "Highlight color unclear. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
                     Exit Function
                 End If
                 firstRange.text = redactionText
@@ -219,7 +240,7 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
             ' perform check since we have the color here anyway
             highlightColor = firstRange.Characters(1).HighlightColorIndex
             If (highlightColor < 1) Or (highlightColor > 16) Then
-                log_text "Tried to redact string at " & currentRange.start & " with " & Left(currentRange.text, 50) & ", but no or individual color detected. Cannot redact it. Skipping."
+                log_text "***** Warning *****" & vbCrLf & "Highlight color unclear. Skip, review manually" & vbCrLf & "> Page " & currentRange.Information(wdActiveEndPageNumber) & " starting with: " & Left(currentRange.text, 50)
                 Exit Function
             End If
             firstRange.text = redactionText
@@ -237,26 +258,6 @@ Private Function check_and_redact_range(currentRange As Range, Optional depth As
         currentRange.text = redactionText
         formRedaction.addRedactedCountByColor LTrim(Str(highlightColor))
     End If
-End Function
-
-Private Function redact_text(currentRange As Range)
-    ' get the current highlight color
-    ' we need this for counting
-    Dim highlightColor As Integer
-    highlightColor = currentRange.Characters(1).HighlightColorIndex
-    
-    ' perform check since we have the color here anyway
-    If (highlightColor < 1) Or (highlightColor > 16) Then
-        log_text "Tried to redact string at " & currentRange.start & " with " & Left(currentRange.text, 50) & ", but no or individual color detected. Cannot redact it. Skipping."
-        Exit Function
-    End If
-
-    ' getting redaction text
-    Dim redactionText As String
-    redactionText = TB_redactionText.text
-
-    currentRange.text = redactionText
-    formRedaction.addRedactedCountByColor LTrim(Str(highlightColor))
 End Function
 
 Private Function reset_search_parameters(oRng As Variant)
@@ -427,5 +428,6 @@ Public Sub build_user_color_selection_array()
 End Sub
 
 Private Function log_text(text As String)
-    logBox.text = logBox.text & text & vbCrLf
+    logBox.text = logBox.text & text & vbCrLf & vbCrLf
 End Function
+
