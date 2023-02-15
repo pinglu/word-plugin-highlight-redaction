@@ -22,7 +22,7 @@ ScreenUpdate is disable during redaction to make it a little faster / prevent th
 - cannot redact text with custom colors (outside of WdColorIndex)
 - it also sometimes redacts one highlight as two consecutive highlights (putting in [redacted][redacted] instead of once [redacted])
 - it will not redact text in header of footer (but will search for colors in there). This can be changed in code (see clsRedaction.build_story_ranges)
-This macro is created by Ping Lu (mail@ping.lu) in 2023Q1. For License see below
+This macro is created by Ping Lu (github@ping.lu) in 2023Q1. For License see below
 
 ### Please Note:
 - If an highlight color is not within the first 5 pages and not in the footer or header, it will not be displayed to the user. Change this in: clsRedaction.Startup::searchNumberOfFirstPages
