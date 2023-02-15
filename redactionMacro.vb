@@ -61,7 +61,7 @@ Sub addInfoTextToUserForm(myForm As userForm1)
     "- cannot redact text with custom colors (outside of WdColorIndex)" & vbCrLf & _
     "- it also sometimes redacts one highlight as two consecutive highlights (putting in [redacted][redacted] instead of once [redacted])" & vbCrLf & _
     "- it will not redact text in header of footer (but will search for colors in there). This can be changed in code (see clsRedaction.build_story_ranges)" & vbCrLf & vbCrLf & _
-    "This macro is created by Ping Lu (mail@ping.lu) in 2023Q1. For License see below"
+    "This macro is created by Ping Lu (github@ping.lu) in 2023Q1. For License see below"
     
     myForm.TB_Info.text = text
     
